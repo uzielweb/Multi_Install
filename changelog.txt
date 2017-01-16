@@ -1,0 +1,11 @@
+1.0.1 - Added a menu icon
+
+1.0.2 - Added option to install from a URL.
+
+1.0.3 - Bug fix
+
+1.0.4 - Now works with Joomla 1.6 and 1.7
+
+1.0.5 - Added fix for Windows Servers. PHP Zip function cannot open from the Windows Temp directory.
+
+1.0.6 - Fixed installation from URL functionality that was broken in 1.0.5. Checked compatibility with Joomla 2.5.1.

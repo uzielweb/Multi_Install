@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE install SYSTEM "http://dev.joomla.org/xml/1.5/component-install.dtd">
+<extension method="upgrade" type="component" version="1.5.0">
+    <name>Multi Install</name>
+    <author>Chris Taylor</author>
+    <authorEmail>chris@forgetso.com</authorEmail>
+    <authorUrl>http://www.forgetso.com</authorUrl>
+    <creationDate>2010-10-14</creationDate>
+    <license>GNU/GPLv3 http://www.gnu.org/licenses/gpl-3.0.html</license>
+    <version>1.0.6</version>
+    <releaseDate>2012-02-14</releaseDate>
+    <description>Allows you to install multiple extensions at once.</description>
+
+    <installfile></installfile>
+    <uninstallfile></uninstallfile>
+    <!-- Site Main File Copy Section -->
+
+
+
+
+    <!-- administration part -->
+
+    <administration>
+
+    <menu img="components/com_multiinstall/images/installer16x16.png">COM_MULTIINSTALL</menu>
+
+    <files folder = "admin">
+        <filename>multiinstall.php</filename>
+        <filename>controller.php</filename>
+        <filename>index.html</filename>
+        <folder>models</folder>
+        <folder>views</folder>
+        <folder>images</folder>
+    </files>
+
+    <languages>
+        <language tag="en-GB">language/admin/en-GB/en-GB.com_multiinstall.ini</language>
+        <language tag="en-GB">language/admin/en-GB/en-GB.com_multiinstall.sys.ini</language>
+        <language tag="en-GB">language/admin/en-GB/en-GB.com_multiinstall.menu.ini</language>
+        <language tag="pt-BR">language/admin/pt-BR/pt-BR.com_multiinstall.ini</language>
+        <language tag="pt-BR">language/admin/pt-BR/pt-BR.com_multiinstall.sys.ini</language>
+        <language tag="pt-BR">language/admin/pt-BR/pt-BR.com_multiinstall.menu.ini</language>
+    </languages>
+
+    </administration>
+
+</extension>
