@@ -1,11 +1,21 @@
-1.0.1 - Added a menu icon
+Changelog
+------------
 
-1.0.2 - Added option to install from a URL.
+2.0.0 (2026-11-02)
+- Reescrita completa para arquitetura nativa do Joomla 6
+- Adoção de namespaces PSR-4 (`Uzielweb\Component\Multiinstall`)
+- Adoção de Service Provider e DI Container (`services/provider.php`)
+- Adoção do Web Asset Manager (WAM) com `joomla.asset.json`
+- Adicionados arquivos `access.xml` e `config.xml` com ACL nativa
+- Removido uso de JRequest, JFactory, JFolder, JFile e JToolBarHelper legados
+- Migração para classes Joomla\CMS modernas e limpas
+- Interface redesenhada com Bootstrap 5 e abas interativas nativas
+- Suporte a idiomas no formato moderno sem prefixo (pt-BR e en-GB)
+- Proteção CSRF com validação de tokens em formulários de envio e URL
 
-1.0.3 - Bug fix
+1.0.6 (2012-02-14)
+- Atualização para Joomla 2.5 / 3.x
+- Tradução para pt-BR por Uziel Almeida Oliveira
 
-1.0.4 - Now works with Joomla 1.6 and 1.7
-
-1.0.5 - Added fix for Windows Servers. PHP Zip function cannot open from the Windows Temp directory.
-
-1.0.6 - Fixed installation from URL functionality that was broken in 1.0.5. Checked compatibility with Joomla 2.5.1.
+1.0.0 (2010-10-14)
+- Versão inicial para Joomla 1.5 por Chris Taylor
