@@ -2,13 +2,15 @@ Changelog
 ------------
 
 2.0.0 (2026-11-02)
+- Reatribuição, manutenção e modernização por Uziel Almeida Oliveira (Ponto Mega)
 - Reescrita completa para arquitetura nativa do Joomla 6
+- Configuração do Joomla Update Server com manifesto `update.xml`
 - Adoção de namespaces PSR-4 (`Uzielweb\Component\Multiinstall`)
 - Adoção de Service Provider e DI Container (`services/provider.php`)
 - Adoção do Web Asset Manager (WAM) com `joomla.asset.json`
 - Adicionados arquivos `access.xml` e `config.xml` com ACL nativa
 - Removido uso de JRequest, JFactory, JFolder, JFile e JToolBarHelper legados
-- Migração para classes Joomla\CMS modernas e limpas
+- Migração para classes Joomla\Filesystem e Joomla\Archive modernas e seguras
 - Interface redesenhada com Bootstrap 5 e abas interativas nativas
 - Suporte a idiomas no formato moderno sem prefixo (pt-BR e en-GB)
 - Proteção CSRF com validação de tokens em formulários de envio e URL

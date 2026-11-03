@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<updates>
+    <update>
+        <name>Multi Install</name>
+        <description>Permite instalar múltiplas extensões Joomla simultaneamente a partir de um único pacote.</description>
+        <element>com_multiinstall</element>
+        <type>component</type>
+        <version>2.0.0</version>
+        <infourl title="Multi Install">https://github.com/uzielweb/Multi_Install</infourl>
+        <downloads>
+            <downloadurl type="full" format="zip">https://github.com/uzielweb/Multi_Install/releases/download/v2.0.0/com_multiinstall-v2.0.0.zip</downloadurl>
+        </downloads>
+        <tags>
+            <tag>stable</tag>
+        </tags>
+        <maintainer>Uziel Almeida Oliveira (Ponto Mega)</maintainer>
+        <maintainerurl>https://pontomega.com.br</maintainerurl>
+        <section>Updates</section>
+        <targetplatform name="joomla" version="((5\.[0-9]+)|(6\.[0-9]+))" />
+        <php_minimum>8.3.0</php_minimum>
+    </update>
+</updates>

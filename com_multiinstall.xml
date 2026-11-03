@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <extension type="component" method="upgrade">
     <name>COM_MULTIINSTALL</name>
-    <author>Chris Taylor / Uziel Almeida Oliveira</author>
-    <authorEmail>contato@uzielweb.com.br</authorEmail>
-    <authorUrl>https://github.com/uzielweb/Multi_Install</authorUrl>
+    <author>Uziel Almeida Oliveira (Ponto Mega)</author>
+    <authorEmail>contato@pontomega.com.br</authorEmail>
+    <authorUrl>https://pontomega.com.br</authorUrl>
     <creationDate>2026-11-02</creationDate>
-    <copyright>(C) 2010 Chris Taylor, (C) 2026 Uziel Almeida Oliveira. All rights reserved.</copyright>
+    <copyright>(C) 2010 Chris Taylor, (C) 2012-2026 Uziel Almeida Oliveira (Ponto Mega). All rights reserved.</copyright>
     <license>GNU General Public License version 2 or later; see LICENSE.txt</license>
     <version>2.0.0</version>
     <description>COM_MULTIINSTALL_XML_DESCRIPTION</description>
@@ -27,4 +27,8 @@
         <folder>css</folder>
         <filename>joomla.asset.json</filename>
     </media>
+
+    <updateservers>
+        <server type="extension" name="Multi Install Updates" priority="1">https://raw.githubusercontent.com/uzielweb/Multi_Install/master/update.xml</server>
+    </updateservers>
 </extension>
