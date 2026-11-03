@@ -14,7 +14,6 @@ defined('_JEXEC') or die;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\MVC\Controller\BaseController;
 use Joomla\CMS\Router\Route;
-use Joomla\CMS\Session\Session;
 
 /**
  * Multiinstall master display controller.
@@ -29,59 +28,64 @@ class DisplayController extends BaseController
     protected $default_view = 'multiinstall';
 
     /**
-     * Method to display a view.
-     *
-     * @param   boolean  $cachable   If true, the view output will be cached.
-     * @param   array    $urlparams  An array of safe URL parameters and their variable types.
-     *
-     * @return  static
-     */
-    public function display($cachable = false, $urlparams = [])
-    {
-        return parent::display($cachable, $urlparams);
-    }
-
-    /**
-     * Handles file upload installation.
+     * Installs all packages contained in an uploaded ZIP archive.
      *
      * @return  void
      */
     public function upload(): void
     {
         $this->checkToken();
+        $this->assertCanInstall();
 
-        /** @var \Uzielweb\Component\Multiinstall\Administrator\Model\MultiinstallModel $model */
-        $model = $this->getModel('Multiinstall');
+        $result = $this->getModel('Multiinstall')
+            ->installFromUpload($this->input->files->get('extfile', null, 'raw'));
 
-        $result = $model->upload();
-
-        $this->setRedirect(
-            Route::_('index.php?option=com_multiinstall', false),
-            $result['message'],
-            $result['success'] ? 'message' : 'error'
-        );
+        $this->redirectWith($result);
     }
 
     /**
-     * Handles installation from URL.
+     * Downloads a ZIP archive from a URL and installs all packages inside it.
      *
      * @return  void
      */
     public function url(): void
     {
         $this->checkToken();
+        $this->assertCanInstall();
 
-        $url = $this->input->getString('install_url', '');
+        $result = $this->getModel('Multiinstall')
+            ->installFromUrl($this->input->post->getString('install_url', ''));
 
-        /** @var \Uzielweb\Component\Multiinstall\Administrator\Model\MultiinstallModel $model */
-        $model = $this->getModel('Multiinstall');
+        $this->redirectWith($result);
+    }
 
-        $result = $model->installFromUrl($url);
+    /**
+     * Installing extensions requires the same permission as the core installer.
+     *
+     * @return  void
+     *
+     * @throws  \RuntimeException
+     */
+    protected function assertCanInstall(): void
+    {
+        if (!$this->app->getIdentity()->authorise('core.manage', 'com_installer')) {
+            throw new \RuntimeException(Text::_('JERROR_ALERTNOAUTHOR'), 403);
+        }
+    }
 
+    /**
+     * Redirects back to the component with the result message.
+     *
+     * @param   array  $result  ['success' => bool, 'message' => string]
+     *
+     * @return  void
+     */
+    protected function redirectWith(array $result): void
+    {
         $this->setRedirect(
             Route::_('index.php?option=com_multiinstall', false),
             $result['message'],
-            $result['success'] ? 'message' : 'error'
+            $result['success'] ? 'success' : 'error'
         );
     }
 }

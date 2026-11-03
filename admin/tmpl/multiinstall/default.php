@@ -14,7 +14,7 @@ use Joomla\CMS\Language\Text;
 use Joomla\CMS\Router\Route;
 
 /** @var \Joomla\CMS\WebAsset\WebAssetManager $wa */
-$wa = $this->document->getWebAssetManager();
+$wa = $this->getDocument()->getWebAssetManager();
 $wa->useStyle('com_multiinstall.admin');
 ?>
 
@@ -115,7 +115,7 @@ $wa->useStyle('com_multiinstall.admin');
                                            class="form-control"
                                            name="install_url"
                                            id="install_url"
-                                           placeholder="https://exemplo.com/pacote.zip"
+                                           placeholder="<?php echo $this->escape(Text::_('COM_MULTIINSTALL_FIELD_URL_PLACEHOLDER')); ?>"
                                            required />
                                     <div class="form-text"><?php echo Text::_('COM_MULTIINSTALL_FIELD_URL_DESC'); ?></div>
                                 </div>

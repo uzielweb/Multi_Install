@@ -11,15 +11,16 @@ namespace Uzielweb\Component\Multiinstall\Administrator\Model;
 
 defined('_JEXEC') or die;
 
+use Joomla\Archive\Archive;
 use Joomla\CMS\Factory;
-use Joomla\CMS\Filesystem\File;
-use Joomla\CMS\Filesystem\Folder;
-use Joomla\CMS\Filesystem\Path;
 use Joomla\CMS\Installer\Installer;
 use Joomla\CMS\Installer\InstallerHelper;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\MVC\Model\BaseDatabaseModel;
-use ZipArchive;
+use Joomla\Database\DatabaseInterface;
+use Joomla\Filesystem\File;
+use Joomla\Filesystem\Folder;
+use Joomla\Filesystem\Path;
 
 /**
  * Multiinstall Model
@@ -27,193 +28,216 @@ use ZipArchive;
 class MultiinstallModel extends BaseDatabaseModel
 {
     /**
-     * Upload and install multiple extensions.
+     * Installs all packages contained in an uploaded ZIP archive.
      *
-     * @param   string|null  $downloadedFile  Filename of an already downloaded package in tmp.
+     * @param   array|null  $userfile  Uploaded file data ($_FILES entry).
      *
-     * @return  array  Result containing 'success' (bool) and 'message' (string).
+     * @return  array  ['success' => bool, 'message' => string]
      */
-    public function upload(?string $downloadedFile = null): array
+    public function installFromUpload(?array $userfile): array
     {
-        @set_time_limit(0);
-
-        $app = Factory::getApplication();
-        $config = $app->getConfig();
-        $tmpDir = $config->get('tmp_path', JPATH_ROOT . '/tmp');
-
-        $workingFolder = Path::clean($tmpDir . '/multiinstall_' . uniqid());
-
-        if (Folder::exists($workingFolder)) {
-            Folder::delete($workingFolder);
+        if (empty($userfile['name']) || empty($userfile['tmp_name']) || (int) ($userfile['error'] ?? 1) !== 0) {
+            return $this->result(false, Text::_('COM_MULTIINSTALL_NO_FILE_SELECTED'));
         }
 
-        if (!Folder::create($workingFolder)) {
-            return [
-                'success' => false,
-                'message' => Text::_('COM_MULTIINSTALL_UNZIP_ERROR'),
-            ];
+        if (strtolower(File::getExt($userfile['name'])) !== 'zip') {
+            return $this->result(false, Text::_('COM_MULTIINSTALL_UNZIP_ERROR'));
         }
 
-        $destArchive = '';
+        $workDir = $this->createWorkDir();
+        $archive = Path::clean($workDir . '/' . File::makeSafe($userfile['name']));
 
-        if ($downloadedFile === null) {
-            $files = $app->getInput()->files->get('extfile', [], 'array');
+        try {
+            File::upload($userfile['tmp_name'], $archive);
+        } catch (\Throwable $e) {
+            $this->removeDir($workDir);
 
-            if (empty($files) || empty($files['name']) || empty($files['tmp_name'])) {
-                Folder::delete($workingFolder);
-                return [
-                    'success' => false,
-                    'message' => Text::_('COM_MULTIINSTALL_NO_FILE_SELECTED'),
-                ];
-            }
-
-            $safeFileName = File::makeSafe($files['name']);
-            $destArchive  = Path::clean($workingFolder . '/' . $safeFileName);
-
-            if (!File::upload($files['tmp_name'], $destArchive, false, true)) {
-                Folder::delete($workingFolder);
-                return [
-                    'success' => false,
-                    'message' => Text::_('COM_MULTIINSTALL_UNZIP_ERROR'),
-                ];
-            }
-        } else {
-            $sourceFile = Path::clean($tmpDir . '/' . $downloadedFile);
-            $destArchive = Path::clean($workingFolder . '/' . $downloadedFile);
-
-            if (!File::exists($sourceFile)) {
-                Folder::delete($workingFolder);
-                return [
-                    'success' => false,
-                    'message' => Text::_('COM_MULTIINSTALL_INVALID_URL'),
-                ];
-            }
-
-            File::copy($sourceFile, $destArchive);
-            File::delete($sourceFile);
+            return $this->result(false, Text::_('COM_MULTIINSTALL_UNZIP_ERROR'));
         }
 
-        if (!class_exists('ZipArchive')) {
-            Folder::delete($workingFolder);
-            return [
-                'success' => false,
-                'message' => Text::_('COM_MULTIINSTALL_ERROR_ZIP_CLASS'),
-            ];
-        }
-
-        $extractTarget = Path::clean($workingFolder . '/extracted');
-        Folder::create($extractTarget);
-
-        $zip = new ZipArchive();
-        $openResult = $zip->open($destArchive);
-
-        if ($openResult !== true) {
-            Folder::delete($workingFolder);
-            return [
-                'success' => false,
-                'message' => Text::_('COM_MULTIINSTALL_UNZIP_ERROR'),
-            ];
-        }
-
-        $zip->extractTo($extractTarget);
-        $zip->close();
-        File::delete($destArchive);
-
-        $packages = Folder::files($extractTarget, '\.(zip|tar\.gz|tgz)$', false, true);
-
-        if (empty($packages)) {
-            Folder::delete($workingFolder);
-            return [
-                'success' => false,
-                'message' => Text::_('COM_MULTIINSTALL_NO_PACKAGES_FOUND'),
-            ];
-        }
-
-        return $this->installBatchPackages($packages, $workingFolder);
+        return $this->processArchive($archive, $workDir);
     }
 
     /**
-     * Installs remote package from URL.
+     * Downloads a ZIP archive from a URL and installs all packages inside it.
      *
-     * @param   string  $url  Package URL
+     * @param   string  $url  Package URL.
      *
-     * @return  array
+     * @return  array  ['success' => bool, 'message' => string]
      */
     public function installFromUrl(string $url): array
     {
         $url = trim($url);
 
-        if (empty($url) || !filter_var($url, FILTER_VALIDATE_URL)) {
-            return [
-                'success' => false,
-                'message' => Text::_('COM_MULTIINSTALL_PLEASE_ENTER_URL'),
-            ];
+        if ($url === '' || !filter_var($url, FILTER_VALIDATE_URL) || !preg_match('#^https?://#i', $url)) {
+            return $this->result(false, Text::_('COM_MULTIINSTALL_PLEASE_ENTER_URL'));
         }
 
-        $downloadedFile = InstallerHelper::downloadPackage($url);
+        $tmpPath    = Factory::getApplication()->get('tmp_path');
+        $downloaded = InstallerHelper::downloadPackage($url);
 
-        if (!$downloadedFile) {
-            return [
-                'success' => false,
-                'message' => Text::_('COM_MULTIINSTALL_INVALID_URL'),
-            ];
+        if (!$downloaded) {
+            return $this->result(false, Text::_('COM_MULTIINSTALL_INVALID_URL'));
         }
 
-        return $this->upload($downloadedFile);
+        $workDir = $this->createWorkDir();
+        $archive = Path::clean($workDir . '/' . basename($downloaded));
+
+        try {
+            File::move(Path::clean($tmpPath . '/' . $downloaded), $archive);
+        } catch (\Throwable $e) {
+            $this->removeDir($workDir);
+
+            return $this->result(false, Text::_('COM_MULTIINSTALL_INVALID_URL'));
+        }
+
+        return $this->processArchive($archive, $workDir);
     }
 
     /**
-     * Executes sequential batch installation of packages.
+     * Extracts the outer archive and installs each inner package.
      *
-     * @param   array   $packages       Full file paths of packages.
-     * @param   string  $workingFolder  Base working directory to cleanup.
+     * @param   string  $archive  Full path of the outer ZIP archive.
+     * @param   string  $workDir  Temporary working directory (removed at the end).
      *
      * @return  array
      */
-    protected function installBatchPackages(array $packages, string $workingFolder): array
+    protected function processArchive(string $archive, string $workDir): array
     {
-        $installer = Installer::getInstance();
-        $installer->setOverwrite(true);
+        $extractDir = Path::clean($workDir . '/extracted');
 
-        $installedCount = 0;
-        $failedPackage = null;
+        // Same archive library used by the core installer (native ZipArchive with pure-PHP fallback).
+        try {
+            $extracted = (new Archive(['tmp_path' => Factory::getApplication()->get('tmp_path')]))
+                ->extract($archive, $extractDir);
+        } catch (\Throwable $e) {
+            $extracted = false;
+        }
 
-        foreach ($packages as $pkgFile) {
-            $unpacked = InstallerHelper::unpack($pkgFile);
+        if (!$extracted) {
+            $this->removeDir($workDir);
 
-            if (!$unpacked || empty($unpacked['dir'])) {
-                $failedPackage = basename($pkgFile);
-                break;
+            return $this->result(false, Text::_('COM_MULTIINSTALL_UNZIP_ERROR'));
+        }
+
+        $packages = Folder::files($extractDir, '\.(zip|tar|tgz|gz|bz2|tbz2)$', false, true);
+
+        if (empty($packages)) {
+            $this->removeDir($workDir);
+
+            return $this->result(false, Text::_('COM_MULTIINSTALL_NO_PACKAGES_FOUND'));
+        }
+
+        sort($packages);
+
+        $result = $this->installPackages($packages);
+        $this->removeDir($workDir);
+
+        return $result;
+    }
+
+    /**
+     * Installs each package sequentially, stopping at the first failure.
+     *
+     * @param   string[]  $packages  Full paths of the package files.
+     *
+     * @return  array
+     */
+    protected function installPackages(array $packages): array
+    {
+        $db        = Factory::getContainer()->get(DatabaseInterface::class);
+        $installed = 0;
+
+        foreach ($packages as $packageFile) {
+            $package = InstallerHelper::unpack($packageFile, true);
+
+            if (empty($package['dir']) || empty($package['type'])) {
+                if (!empty($package['extractdir'])) {
+                    InstallerHelper::cleanupInstall('', $package['extractdir']);
+                }
+
+                return $this->failure($installed, basename($packageFile));
             }
 
-            $installOk = $installer->install($unpacked['dir']);
+            // A fresh installer per package avoids state leaking between installs.
+            $installer = new Installer();
+            $installer->setDatabase($db);
+            $installer->setOverwrite(true);
 
-            // Cleanup unpacked files for this specific extension
-            InstallerHelper::cleanupInstall($pkgFile, $unpacked['resultdir']);
+            $ok = $installer->install($package['dir']);
 
-            if (!$installOk) {
-                $failedPackage = basename($pkgFile);
-                break;
+            InstallerHelper::cleanupInstall('', $package['extractdir']);
+
+            if (!$ok) {
+                return $this->failure($installed, basename($packageFile));
             }
 
-            $installedCount++;
+            $installed++;
         }
 
-        // Clean up entire temporary work folder
-        if (Folder::exists($workingFolder)) {
-            Folder::delete($workingFolder);
+        return $this->result(true, Text::sprintf('COM_MULTIINSTALL_INSTALL_SUCCESS', $installed));
+    }
+
+    /**
+     * Builds a failure result, reporting how many packages were installed before it.
+     *
+     * @param   int     $installed  Number of packages installed before the failure.
+     * @param   string  $package    Name of the failed package.
+     *
+     * @return  array
+     */
+    protected function failure(int $installed, string $package): array
+    {
+        $message = Text::sprintf('COM_MULTIINSTALL_INSTALL_ERROR', $package);
+
+        if ($installed > 0) {
+            $message .= ' ' . Text::sprintf('COM_MULTIINSTALL_INSTALL_PARTIAL', $installed);
         }
 
-        if ($failedPackage !== null) {
-            return [
-                'success' => false,
-                'message' => sprintf(Text::_('COM_MULTIINSTALL_INSTALL_ERROR'), $failedPackage),
-            ];
-        }
+        return $this->result(false, $message);
+    }
 
-        return [
-            'success' => true,
-            'message' => sprintf(Text::_('COM_MULTIINSTALL_INSTALL_SUCCESS'), $installedCount),
-        ];
+    /**
+     * Creates a unique temporary working directory inside the site tmp path.
+     *
+     * @return  string
+     */
+    protected function createWorkDir(): string
+    {
+        $dir = Path::clean(Factory::getApplication()->get('tmp_path') . '/multiinstall_' . bin2hex(random_bytes(8)));
+        Folder::create($dir);
+
+        return $dir;
+    }
+
+    /**
+     * Removes a directory, ignoring errors.
+     *
+     * @param   string  $dir  Directory path.
+     *
+     * @return  void
+     */
+    protected function removeDir(string $dir): void
+    {
+        try {
+            if (is_dir($dir)) {
+                Folder::delete($dir);
+            }
+        } catch (\Throwable $e) {
+            // Ignore cleanup failures.
+        }
+    }
+
+    /**
+     * Builds a result array.
+     *
+     * @param   bool    $success  Whether the operation succeeded.
+     * @param   string  $message  Message to display.
+     *
+     * @return  array
+     */
+    protected function result(bool $success, string $message): array
+    {
+        return ['success' => $success, 'message' => $message];
     }
 }
